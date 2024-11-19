@@ -11,7 +11,11 @@ services:
     volumes:
       - ./docker/postgres:/var/lib/postgresql/data
   Redis:
+    depends_on:
+      - Postgres
     container_name: database_redis
     image: redis/redis-stack-server:latest
     ports:
-      - 6379:6379
+      - ${REDIS_PORT}:6379
+    volumes:
+      - ./docker/redis:/data
