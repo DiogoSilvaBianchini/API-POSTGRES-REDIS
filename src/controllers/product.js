@@ -1,5 +1,7 @@
 const Service = require("../services/Services")
 const service = new Service("products")
+const {client} = require("../database/config/redis")
+const {updateCache} = require("../utils/cache")
 
 class Products{
     static async createProduct(req,res,next){
@@ -14,8 +16,14 @@ class Products{
 
     static async findAllProducts(req,res,next){
         try {
-            const searchProducts = await service.findAll()
-            return res.status(200).json({msg: "Todos os produtos.", results: searchProducts, status: 200})
+            const cachedProducts = await client.get("products")
+            const products = JSON.parse(cachedProducts)
+            if(products.length > 0){
+                return res.status(200).json({msg: "Todos os produtos.", results: products, status: 200})
+            }else{
+                const searchProducts = await service.findAll()
+                return res.status(200).json({msg: "Todos os produtos.", results: searchProducts, status: 200})
+            }
         } catch (error) {
             next(error)
         }
@@ -31,9 +39,8 @@ class Products{
                     body[element[0]] = element[1]
                 }
             }))
-
             await service.updateById(body, id)
-
+            await updateCache("products", service)
             return res.status(200).json({msg: "Item atualizado com sucesso", results: true, status:200})
 
         } catch (error) {
@@ -41,10 +48,13 @@ class Products{
         }
     }
 
+    
+
     static async removeProduct(req,res,next){
         try {
             const {id} = req.params
             await service.removeById(id)
+            await updateCache("products", service)
             return res.status(200).json({msg: "Item removido com sucesso", results: true, status: 200})
         } catch (error) {
             next(error)
